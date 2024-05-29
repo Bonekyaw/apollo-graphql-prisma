@@ -15,6 +15,7 @@ const {
   validatePhone,
   checkOtpErrorIfSameDate,
   checkOtpPhone,
+  checkAdminExist,
 } = require("../../utils/check");
 
 const {
@@ -24,7 +25,8 @@ const {
   updateOtp,
   createAdmin,
   updateAdmin,
-} = require("../../services/authService.js");
+} = require("../../services/authService");
+const { getAdminById } = require("../../services/adminService");
 
 const rand = () => Math.random().toString(36).substring(2);
 
@@ -301,7 +303,12 @@ module.exports = {
       const salt = await bcrypt.genSalt(10);
       const hashPassword = await bcrypt.hash(password, salt);
 
-      const adminData = { phone: phone, password: hashPassword };
+      const randomToken = rand() + rand() + rand();
+      const adminData = {
+        phone: phone,
+        password: hashPassword,
+        randToken: randomToken,
+      };
       const newAdmin = await createAdmin(adminData);
 
       // jwt token
@@ -315,6 +322,7 @@ module.exports = {
         token: jwtToken,
         phone: phone,
         userId: newAdmin.id,
+        randomToken: randomToken,
       };
     }),
 
@@ -394,9 +402,16 @@ module.exports = {
         });
       }
 
+      const randomToken = rand() + rand() + rand();
       if (admin.error >= 1) {
         const adminData = {
           error: 0,
+          randToken: randomToken,
+        };
+        result = await updateAdmin(admin.id, adminData);
+      } else {
+        const adminData = {
+          randToken: randomToken,
         };
         result = await updateAdmin(admin.id, adminData);
       }
@@ -411,8 +426,69 @@ module.exports = {
         token: jwtToken,
         phone: phone,
         userId: admin.id,
+        randomToken: randomToken,
       };
     }),
+
+    refreshToken: asyncHandler(async (parent, args, context, info) => {
+      checkAdminExist(context.token);
+      const randomToken = args.userInput.randomToken;
+      let userId = args.userInput.userId;
+
+      // Start validation
+      if (!validator.isInt(userId) || validator.isEmpty(randomToken.trim())) {
+        throw new GraphQLError("User input is invalid.", {
+          extensions: {
+            code: "BAD REQUEST",
+            http: { status: 400 },
+          },
+        });
+      }
+      // End Validation
+      userId = parseInt(userId);
+
+      const admin = await getAdminById(userId);
+      checkAdminExist(admin);
+
+      if (admin.randToken !== randomToken) {
+        const adminData = {
+          error: 3,
+        };
+        await updateAdmin(userId, adminData);
+
+        throw new GraphQLError(
+          "This request may be an attack. Please contact the admin team.",
+          {
+            extensions: {
+              code: "BAD REQUEST",
+              http: { status: 400 },
+            },
+          }
+        );
+      }
+
+      const randToken = rand() + rand() + rand();
+
+      const adminData = {
+        randToken: randToken,
+      };
+      await updateAdmin(userId, adminData);
+
+      // jwt token
+      let payload = { id: userId };
+      const jwtToken = jwt.sign(payload, process.env.TOKEN_SECRET, {
+        expiresIn: "1h",
+      });
+
+      return {
+        message: "Successfully sent a new token.",
+        token: jwtToken,
+        userId: userId,
+        randomToken: randToken,
+      };
+    }),
+
+    //
   },
 };
 

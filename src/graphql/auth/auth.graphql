@@ -2,8 +2,6 @@ type Otp {
   _id: ID!
   phone: String!
   otp: String!
-  rememberToken: String!
-  verifyToken: String
   count: Int!
   error: Int
   createdAt: String!
@@ -14,7 +12,6 @@ type Admin {
   _id: ID!
   name: String
   phone: String!
-  password: String!
   role: String
   status: String
   lastLogin: String
@@ -34,7 +31,15 @@ type AuthDataResponse {
   message: String!
   token: String!
   phone: String!
-  userId: String!
+  userId: ID!
+  randomToken: String!
+}
+
+type RefreshTokenResponse {
+  message: String!
+  token: String!
+  userId: ID!
+  randomToken: String!
 }
 
 input OtpCheckInput {
@@ -53,6 +58,11 @@ input AuthUser {
   password: String!
 }
 
+input RefreshTokenInput {
+  userId: ID!
+  randomToken: String!
+}
+
 type Query {
   admins: Admin!
 }
@@ -65,4 +75,5 @@ type Mutation {
     userInput: PasswordConfirmInput
   ): AuthDataResponse
   login(userInput: PasswordConfirmInput): AuthDataResponse
+  refreshToken(userInput: RefreshTokenInput): RefreshTokenResponse
 }
