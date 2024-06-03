@@ -101,7 +101,7 @@ const hasRole = (...role) => (next) =>
 
 const resolversComposition = {
   "Mutation.uploadProfile": [isAuthenticated(), hasRole("user")],
-  "Query.paginateAdmins": [isAuthenticated(), hasRole("user", "editor")],
+  "Query.paginateAdmins": [isAuthenticated(), hasRole("user")],
 };
 
 const composedResolvers = composeResolvers(resolvers, resolversComposition);
